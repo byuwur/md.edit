@@ -815,21 +815,7 @@
           setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
 
-        function renderIntegration(title, assets, body) {
-          const html = [
-            "<!doctype html>",
-            '<html lang="en">',
-            "  <head>",
-            '    <meta charset="UTF-8">',
-            '    <meta name="viewport" content="width=device-width, initial-scale=1">',
-            `    <title>${title}</title>`,
-            ...assets,
-            "  </head>",
-            "  <body>",
-            ...body,
-            "  </body>",
-            "</html>"
-          ].join("\n");
+        function renderIntegration(html) {
           if (html === integrationHTML) return;
           integrationHTML = html;
           if (typeof window.byCODEviewer === "function") {
@@ -850,26 +836,30 @@
           const codePath = cdn ? "https://cdn.jsdelivr.net/gh/byuwur/code.view@latest/" : "";
           const editorPath = cdn ? "https://cdn.jsdelivr.net/gh/byuwur/md.edit@latest/" : "";
           const endScript = "</" + "script>";
-          renderIntegration(
-            "MD.edit",
-            [
-              `    <link rel="stylesheet" href="${mdPath}md${min}.css" />`,
-              `    <link rel="stylesheet" href="${codePath}code${min}.css" />`,
-              `    <link rel="stylesheet" href="${editorPath}md.edit${min}.css" />`,
-              `    <script src="${codePath}code${min}.js" defer>${endScript}`,
-              `    <script src="${mdPath}md${min}.js" defer>${endScript}`,
-              `    <script src="${editorPath}md.edit${min}.js" defer>${endScript}`
-            ],
-            [
-              '    <div id="document" class="light" data-theme="github"></div>',
-              "    <script>",
-              '      document.addEventListener("DOMContentLoaded", () => {',
-              '        const editor = byMDeditor(document.getElementById("document"), "# Hello\\n\\nStart writing.");',
-              "        // Read editor.getMarkdown() when your application saves.",
-              "      });",
-              `    ${endScript}`
-            ]
-          );
+          // prettier-ignore
+          renderIntegration(/* HTML */ `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MD.edit</title>
+    <link rel="stylesheet" href="${mdPath}md${min}.css" />
+    <link rel="stylesheet" href="${codePath}code${min}.css" />
+    <link rel="stylesheet" href="${editorPath}md.edit${min}.css" />
+    ${`<script src="${codePath}code${min}.js" defer>${endScript}
+    <script src="${mdPath}md${min}.js" defer>${endScript}
+    <script src="${editorPath}md.edit${min}.js" defer>${endScript}`}
+  </head>
+  <body>
+    <div id="document" class="light" data-theme="github"></div>
+    ${`<script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const editor = byMDeditor(document.getElementById("document"), "# Hello\\n\\nStart writing.");
+        // Read editor.getMarkdown() when your application saves.
+      });
+    ${endScript}`}
+  </body>
+</html>`);
           document.getElementById("integration-note").textContent = cdn
             ? "CDN follows the latest release; updates may take time to reach caches."
             : "Place the HTML beside md.edit.js, md.edit.css, md.js, md.css, code.js, and code.css. Toolbar icons load from the CDN; text labels work offline.";
