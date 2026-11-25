@@ -26,7 +26,17 @@ const summary = (values) => ({
       if (route.request().url().endsWith("fontawesome.min.css")) return route.fulfill({ body: "", contentType: "text/css" });
       return route.abort();
     });
-    await page.setContent('<style>body{margin:1rem}#editor{max-width:60rem}</style><div id="editor"></div>');
+    await page.setContent(
+      /* HTML */ `<style>
+          body {
+            margin: 1rem;
+          }
+          #editor {
+            max-width: 60rem;
+          }
+        </style>
+        <div id="editor"></div>`
+    );
     for (const file of ["../../md.view/md.css", "../../code.view/code.css", "../md.edit.css"]) await page.addStyleTag({ path: path.join(__dirname, file) });
     for (const file of ["../../code.view/code.js", "../../md.view/md.js", "../md.edit.js"]) await page.addScriptTag({ path: path.join(__dirname, file) });
     // CPU throttling and heap collection use Chromium DevTools, so this benchmark is Chromium-only.

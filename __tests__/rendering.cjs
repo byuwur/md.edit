@@ -23,7 +23,10 @@ test("MD editor library", { timeout: 30000 }, async (t) => {
   // Optional icon glyphs do not participate in source/history checks.
   await page.route("**/*", (route) => (route.request().url().endsWith("fontawesome.min.css") ? route.fulfill({ body: "", contentType: "text/css" }) : route.abort()));
   // ===== BROWSER FIXTURE =====
-  await page.setContent('<!doctype html><meta charset="UTF-8"><div id="viewer"></div>');
+  await page.setContent(
+    /* HTML */ `<!doctype html><meta charset="UTF-8" />
+      <div id="viewer"></div>`
+  );
   // Exercise the real published companion APIs, checked out beside the editor in CI.
   await page.addStyleTag({ path: path.join(__dirname, "../../md.view/md.css") });
   await page.addScriptTag({ path: path.join(__dirname, "../../md.view/md.js") });
@@ -175,7 +178,7 @@ test("MD editor library", { timeout: 30000 }, async (t) => {
     const image = page.locator(".byEDimage");
     await image.click();
     await page.locator(".byEDcontextToolbar").getByRole("button", { name: "Small (160px)", exact: true }).click();
-    assert.equal(await page.evaluate(() => editor.getMarkdown()), source.replace(")", ")<!-- bymd:size=small -->"));
+    assert.equal(await page.evaluate(() => editor.getMarkdown()), source.replace(")", `)<!-- bymd:size=small -->`));
     await page.evaluate(() => editor.setLanguage("es"));
     await page.keyboard.press("Escape");
     await page.locator(".byEDgroup-fence").hover();
@@ -443,7 +446,11 @@ test("MD editor library", { timeout: 30000 }, async (t) => {
 
   await t.test("preview keeps untrusted content inert and disposal removes owned UI", async () => {
     await page.evaluate(() => {
-      editor.setMarkdown('<img src=x onerror="window.injected=1">\n\n[bad](javascript:alert(1))');
+      editor.setMarkdown(
+        `<img src="x" onerror="window.injected=1" />
+
+          [bad](javascript:alert(1))`
+      );
       editor.setPreview(true);
     });
     assert.equal(await page.locator(".byEDpreview img, .byEDpreview script, .byEDpreview a[href^='javascript:']").count(), 0);

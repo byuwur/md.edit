@@ -201,8 +201,13 @@
   const createThemeButton = () => {
     const button = node("button", "byVIEWthemeToggle");
     button.type = "button";
-    button.innerHTML =
-      '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 12.8A9 9 0 0 1 11.2 3 9 9 0 1 0 21 12.8Z"/></svg><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4m0-14.2-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
+    button.innerHTML = /* HTML */ ` <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M21 12.8A9 9 0 0 1 11.2 3 9 9 0 1 0 21 12.8Z" />
+      </svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4m0-14.2-1.4 1.4M6.3 17.7l-1.4 1.4" />
+      </svg>`;
     return button;
   };
 
@@ -2543,7 +2548,7 @@
         if (!token) return false;
         const start = record.from + (token.sizeFrom ?? token.to),
           end = record.from + token.to,
-          metadata = value === "default" ? "" : `<!-- bymd:size=${value} -->`,
+          metadata = value === "default" ? "" : /* HTML */ `<!-- bymd:size=${value} -->`,
           imageFrom = record.from + token.from,
           keepToolbar = Boolean(selectedImage);
         const changed = change(start, end, metadata, { anchor: imageFrom, focus: start + metadata.length }, name);
@@ -2624,7 +2629,7 @@
         const label = source.slice(from, to) || value.label || languageText[name === "image" ? "imageDescription" : "linkText"];
         const url = value.url.replaceAll("(", "%28").replaceAll(")", "%29").replace(/\s/g, "%20");
         const opening = name === "image" ? "![" : "[";
-        const metadata = name === "image" && imageSizes.includes(value.size) && value.size !== "default" ? `<!-- bymd:size=${value.size} -->` : "";
+        const metadata = name === "image" && imageSizes.includes(value.size) && value.size !== "default" ? /* HTML */ `<!-- bymd:size=${value.size} -->` : "";
         return change(from, to, `${opening}${label}](${url})${metadata}`, { anchor: from + opening.length, focus: from + opening.length + label.length }, name);
       }
       if (name === "table" || name === "insertTable") {
