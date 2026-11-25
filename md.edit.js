@@ -972,11 +972,23 @@
 
   // ===== PUBLIC API =====
   // Mount an editor with caller-owned persistence; all selections use UTF-16 source offsets.
+  const sourceURL = (input, options) => {
+    if (options?.sourceType === "text") return;
+    if (typeof input === "string") return /^(?:https?:\/\/|\.{1,2}\/|\/(?![/*]))[^\s]+$/i.test(input) ? input : undefined;
+    if (input && Object.hasOwn(input, "url") && typeof input.url === "string" && Object.keys(input).length === 1) return input.url.trim() || undefined;
+  };
+  const fetchSource = async (url, signal) => {
+    const response = await fetch(url, { signal });
+    if (!response.ok) throw new Error(`Unable to load source: HTTP ${response.status}.`);
+    return response.text();
+  };
+
   function byMDeditor(element, markdown, options = {}) {
     // ===== OPTIONS AND INSTANCE STATE =====
     if (!(element instanceof HTMLElement)) throw new TypeError("byMDeditor: element must be an HTMLElement.");
     // Markdown owns the document. Editable DOM, line records, and Preview are derived views.
-    let source = markdown instanceof HTMLElement ? markdown.textContent : (markdown ?? element.textContent);
+    const url = sourceURL(markdown, options);
+    let source = url ? "" : markdown instanceof HTMLElement ? markdown.textContent : (markdown ?? element.textContent);
     if (typeof source !== "string") throw new TypeError("byMDeditor: Markdown must be a string or HTMLElement.");
     if (source.length > 2000000) throw new RangeError("byMDeditor: maximum document size is 2,000,000 characters.");
     let language = resolveLanguage(element, options.language ?? "auto");
@@ -1033,6 +1045,7 @@
     }
     const abort = new AbortController(),
       signal = abort.signal;
+    let sourceRequest;
     let alive = true,
       previewing = false,
       dirty = false,
@@ -1920,6 +1933,7 @@
         readOnly.title = languageText.readOnlyBlock;
         view.append(readOnly);
         global.byMDviewer(readOnly, record.text, {
+          sourceType: "text",
           toolbar: false,
           statusBar: false,
           animations: false,
@@ -2274,6 +2288,7 @@
       }
       const rawFrom = syntax === "source" ? rawOffset(from) : 0,
         rawTo = syntax === "source" ? rawOffset(to) : 0;
+      sourceRequest?.abort();
       source = source.slice(0, from) + inserted + source.slice(to);
       updateRawBreaks(from, to, inserted);
       if (surface.dataset.empty !== String(!source)) surface.dataset.empty = String(!source);
@@ -2996,6 +3011,7 @@
     for (const target of [surface, raw]) {
       listen(target, "input", acceptNativeInput);
       listen(target, "compositionstart", () => {
+        sourceRequest?.abort();
         position = selection();
         const record = lines[lineAt(position.focus)];
         composing = syntax === "source" ? { value: raw.value, from: 0, before: { ...position } } : { record, value: record.text, from: record.from, before: { ...position } };
@@ -3232,6 +3248,25 @@
     });
 
     // ===== MODES AND LIFECYCLE =====
+    const replaceMarkdown = (value) => {
+      if (typeof value !== "string") throw new TypeError("byMDeditor.setMarkdown: value must be a string.");
+      if (value.length > 2000000) throw new RangeError("Document exceeds 2,000,000 characters.");
+      finishComposition();
+      hideContextToolbar();
+      source = value;
+      eol = source.match(/\r\n|\r|\n/)?.[0] || "\n";
+      syncRawBreaks();
+      history = [];
+      historyIndex = 0;
+      historyBytes = 0;
+      position = { anchor: 0, focus: 0 };
+      savedPosition = position;
+      raw.value = source;
+      dirty = true;
+      if (syntax !== "source" && !previewing) build();
+      if (previewing) api.setPreview(true);
+      scheduleToolbar();
+    };
     const api = {
       // Return the last committed Markdown; active IME text commits on compositionend.
       getMarkdown() {
@@ -3240,23 +3275,8 @@
       // Replace source, reset history, and notify onChange even while Preview is visible.
       setMarkdown(value) {
         if (!alive) return;
-        if (typeof value !== "string") throw new TypeError("byMDeditor.setMarkdown: value must be a string.");
-        if (value.length > 2000000) throw new RangeError("Document exceeds 2,000,000 characters.");
-        finishComposition();
-        hideContextToolbar();
-        source = value;
-        eol = source.match(/\r\n|\r|\n/)?.[0] || "\n";
-        syncRawBreaks();
-        history = [];
-        historyIndex = 0;
-        historyBytes = 0;
-        position = { anchor: 0, focus: 0 };
-        savedPosition = position;
-        raw.value = source;
-        dirty = true;
-        if (syntax !== "source" && !previewing) build();
-        if (previewing) api.setPreview(true);
-        scheduleToolbar();
+        sourceRequest?.abort();
+        replaceMarkdown(value);
         options.onChange?.(source);
       },
       // Change presentation while retaining source and the directed selection.
@@ -3336,6 +3356,7 @@
           const started = metrics ? performance.now() : 0;
           syncPreviewTheme();
           global.byMDviewer(preview, source, {
+            sourceType: "text",
             toolbar: false,
             animations: options.animations,
             codeHighlighting: options.codeHighlighting && typeof global.byCODEviewer?.highlight === "function"
@@ -3408,6 +3429,7 @@
         finishComposition();
         hideContextToolbar();
         alive = false;
+        sourceRequest?.abort();
         dismissedCode = null;
         abort.abort();
         dialogAbort?.abort();
@@ -3459,6 +3481,28 @@
     toolbar.classList.remove("byVIEWreveal");
     api.setPalette(["light", "dark"].includes(element.dataset.theme) ? "github" : element.dataset.theme || "github");
     updateToolbar();
+    if (url) {
+      const request = new AbortController();
+      sourceRequest = request;
+      api.ready = fetchSource(url, request.signal)
+        .then((text) => {
+          if (request.signal.aborted) return false;
+          replaceMarkdown(text);
+          return true;
+        })
+        .catch((error) => {
+          if (!request.signal.aborted) {
+            const message = document.createElement("p");
+            message.setAttribute("role", "alert");
+            message.textContent = error.message;
+            element.appendChild(message);
+          }
+          return false;
+        })
+        .finally(() => {
+          sourceRequest = undefined;
+        });
+    } else api.ready = Promise.resolve(true);
     return api;
   }
   // ===== EXPORT =====

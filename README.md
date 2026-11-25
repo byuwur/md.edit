@@ -70,9 +70,18 @@ Run `node __tests__/serve.cjs` and open [the local playground](http://127.0.0.1:
 
 The second argument accepts a string or an `HTMLElement` containing Markdown. Omit it to use the target's text. Each container owns its own state, history, and selection; initializing it again destroys its previous editor.
 
-No database, network requests, autosave, or browser storage are built in.
+Inline documents stay local. URL loading makes one request for the initial document.
 
 ### API
+
+A source string beginning with `https://`, `http://`, `/`, `./`, or `../` and containing no whitespace loads a file. Use `{ url: "example.md" }` for a bare filename. To display a URL string literally, pass `{ sourceType: "text" }` in the options.
+
+```javascript
+const editor = byMDeditor(target, "./example.md");
+await editor.ready;
+```
+
+Editing the document or calling `setMarkdown()` cancels a pending initial load. Relative URLs resolve against the page. Cross-origin files require CORS. A failed or superseded load resolves `ready` to `false`.
 
 ```javascript
 editor.getMarkdown();

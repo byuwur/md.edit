@@ -459,5 +459,30 @@ test("MD editor library", { timeout: 30000 }, async (t) => {
     assert.equal(await page.locator("#viewer").evaluate((element) => element.childNodes.length), 0);
   });
 
+  await t.test("loads a source URL through the public API", async () => {
+    const url = "https://files.test/sample";
+    await page.route(url, (route) =>
+      route.fulfill({
+        contentType: "text/plain",
+        headers: { "Access-Control-Allow-Origin": "*" },
+        body: "# Editable file"
+      })
+    );
+    const displayed = await page.evaluate(async (url) => {
+      const editor = byMDeditor(root, url);
+      return (await editor.ready) && editor.getMarkdown();
+    }, url);
+    assert.match(displayed, /Editable file/);
+  });
+
+  await t.test("a local edit takes precedence over the initial URL", async () => {
+    const result = await page.evaluate(async () => {
+      const editor = byMDeditor(root, "./pending.md", { syntax: "source" });
+      editor.setMarkdown("my edit");
+      return [await editor.ready, editor.getMarkdown()];
+    });
+    assert.deepEqual(result, [false, "my edit"]);
+  });
+
   assert.deepEqual(errors, [], "No uncaught browser errors");
 });
