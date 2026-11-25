@@ -190,10 +190,9 @@
     return size;
   };
 
-  const syncMotion = (element, options) => {
-    const enabled = options.animations !== false;
-    const appear = enabled && Boolean(options.appearAnimation);
-    element.classList.toggle("byVIEWmotion", enabled);
+  const syncMotion = (element, { animations = true, appearAnimation = false }) => {
+    const appear = animations && appearAnimation;
+    element.classList.toggle("byVIEWmotion", animations);
     element.classList.toggle("byVIEWappear", appear);
     return appear;
   };
