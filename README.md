@@ -213,7 +213,7 @@ Explicit sizes preserve proportions and shrink to fit the document. Resizing cha
 
 Each resize is one undo step in the shared history. Source mode edits this same Markdown, and Preview uses the viewer's matching image sizes while remaining read-only. Default removes the size comment. Images without metadata keep the editor's existing display behavior, including its height limit.
 
-Image sizing requires MD viewer 2.8 or newer in both JavaScript and CSS. The playground and CI pin that companion release. Other Markdown engines supporting HTML comments show the image normally and ignore the sizing; engines that escape raw HTML may expose the comment.
+Image sizing requires MD viewer 2.8 or newer in both JavaScript and CSS. The playground and CI use MD.view 3.5. Other Markdown engines supporting HTML comments show the image normally and ignore the sizing; engines that escape raw HTML may expose the comment.
 
 ### Languages
 
