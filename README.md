@@ -104,7 +104,7 @@ editor.destroy();
 
 `onChange` is synchronous. Debounce expensive application work such as storage or remote requests outside the editor. Mode, theme, and selection changes do not call it.
 
-`setControls(options)` also accepts `controlsCompact: true` for icon-only buttons; `false` restores their labels. It changes the visibility of `credits`, `toolbarToggle`, `syntaxSelect`, `previewToggle`, `themeToggle`, `paletteSelect`, and `statusBar` without rebuilding the document or resetting selection/history. Omitted keys retain their current values; `false` hides a control. Use `setToolbar()` for the formatting tools themselves. An empty control bar is hidden automatically.
+`setControls(options)` also accepts `controlsCompact: true` for icon-only buttons; `false` restores their labels. It changes the visibility of `credits`, `toolbarToggle`, `syntaxSelect`, `previewToggle`, `themeToggle`, `fontSizeControls`, `paletteSelect`, and `statusBar` without rebuilding the document or resetting selection/history. Omitted keys retain their current values; `false` hides a control. Use `setToolbar()` for the formatting tools themselves. An empty control bar is hidden automatically.
 
 `getSelection()` returns `{ anchor, focus }`. `setSelection(anchor, focus = anchor)` accepts UTF-16 source offsets, like JavaScript string indexes; reverse ranges preserve their direction. No-code projects positions inside hidden syntax onto visible text; read-only blocks expose their source boundaries. Select All still includes the complete Markdown.
 
@@ -148,6 +148,7 @@ Destroying an editor commits any active composition before cleanup, so `onChange
 | `syntaxSelect`     | `true`                                  | Show the editing-mode selector.                                                                                             |
 | `previewToggle`    | `true`                                  | Show the Preview button.                                                                                                    |
 | `themeToggle`      | `true`                                  | Show the light/dark theme switch.                                                                                           |
+| `fontSizeControls` | `true`                                  | Show the buttons that decrease, reset, or increase the size of the entire editor.                                           |
 | `statusBar`        | `false`                                 | Show editing status and guidance.                                                                                           |
 | `shortcuts`        | `true`                                  | Enable Ctrl/Cmd+B, I, Z, Shift+Z, and Y.                                                                                    |
 | `codeHighlighting` | `true`                                  | Use CODE.view for fenced-code colors while editing and in Preview.                                                          |
@@ -162,7 +163,7 @@ Destroying an editor commits any active composition before cleanup, so `onChange
 | `onChange`         | -                                       | Called with the complete Markdown after a committed edit or `setMarkdown()`.                                                |
 | `onMeasure`        | -                                       | Optional development callback receiving `{ operation, duration, ... }` samples in milliseconds.                             |
 
-For a smaller toolbar: `tools: ["heading", "bold", "italic", "link", "undo", "redo"]`. Set `controlsCompact: true` to hide button labels. Button titles include the supported Ctrl/Cmd shortcuts for Bold, Italic, Undo, and Redo when `shortcuts` is enabled. The paragraph-style menu previews the document's heading sizes in browsers supporting customizable selects; other browsers keep the standard text menu.
+The control bar and formatting toolbar stay together at the top while you scroll, including when buttons wrap. For a smaller toolbar: `tools: ["heading", "bold", "italic", "link", "undo", "redo"]`. Set `controlsCompact: true` to hide button labels. Button titles include the supported Ctrl/Cmd shortcuts for Bold, Italic, Undo, and Redo when `shortcuts` is enabled. The paragraph-style menu previews the document's heading sizes in browsers supporting customizable selects; other browsers keep the standard text menu.
 
 Use `editor.setAnimations(false)` to change motion without recreating the editor or resetting selection/history.
 
@@ -265,7 +266,9 @@ Keyboard access, labeled controls, native dialogs, focus indicators, reduced mot
 
 The editor shares MD.view’s themes. Use `theme` for light or dark mode and `palette` for the color scheme. Monokai, GitHub, Solarized and High Contrast are built in. Load [md.themes.css](https://github.com/byuwur/md.view/blob/main/md.themes.css) after the base stylesheet for the other palettes.
 
-Options override container settings. Omit an option or pass `null` to keep its current value. The `fontSize` option scales the editing surface, source, and preview. Numeric values use rem. CSS sizes such as `20px` also work within the `0.5rem` to `3rem` range. Invalid appearance values throw `RangeError` before replacing the document.
+Options override container settings. Omit an option or pass `null` to keep its current value. Invalid appearance values throw `RangeError` before replacing the document.
+
+**A-** and **A+** resize the current editor in `0.125rem` steps between `0.5rem` and `3rem`. Both toolbars, dialogs, and the document in visual, Source, and Preview modes scale together. **A** resets to the configured `fontSize` or the inherited container size. Set `fontSize` to a number in rem or a CSS length such as `20px` or `1.25em`.
 
 ```html
 <div id="viewer" class="dark" data-theme="github"></div>

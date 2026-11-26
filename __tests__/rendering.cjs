@@ -39,6 +39,39 @@ test("MD editor library", { timeout: 30000 }, async (t) => {
   });
 
   // ===== RENDERING BEHAVIOR =====
+  await t.test("both toolbar rows stay together when the page or editor scrolls", async () => {
+    const result = await page.evaluate(() => {
+      const host = document.createElement("div");
+      document.body.prepend(host);
+      host.style.width = "28rem";
+      const editor = byMDeditor(host, "# Section\n\n- A list item\n\n".repeat(40), { animations: false });
+      const bar = host.querySelector(".byEDbar");
+      const toolbar = host.querySelector(".byEDtoolbar");
+      const credits = host.querySelector(".byEDcredits");
+
+      function pinned(top) {
+        const controls = bar.getBoundingClientRect();
+        const tools = toolbar.getBoundingClientRect();
+        return Math.abs(controls.top - top) <= 1 && Math.abs(tools.top - controls.bottom) <= 1 && Math.abs(credits.getBoundingClientRect().top - tools.bottom) <= 1;
+      }
+
+      window.scrollTo(0, 240);
+      const pagePinned = window.scrollY > 0 && pinned(0);
+      window.scrollTo(0, 0);
+      host.style.height = "24rem";
+      host.style.overflow = "auto";
+      host.scrollTop = 240;
+      const top = host.getBoundingClientRect().top + host.clientTop;
+      const embedPinned = host.scrollTop > 0 && pinned(top);
+      editor.setToolbar(false);
+      const collapsed = toolbar.hidden && Math.abs(credits.getBoundingClientRect().top - bar.getBoundingClientRect().bottom) <= 1;
+      editor.destroy();
+      host.remove();
+      return { pagePinned, embedPinned, collapsed };
+    });
+    assert.deepEqual(result, { pagePinned: true, embedPinned: true, collapsed: true });
+  });
+
   await t.test("live motion settings and preview theme follow the editor", async () => {
     const result = await page.evaluate(() => {
       const host = document.body.appendChild(document.createElement("div"));
@@ -62,7 +95,7 @@ test("MD editor library", { timeout: 30000 }, async (t) => {
     assert.deepEqual(result, { disabled: false, enabled: true, dark: true, light: true, retained: true });
   });
 
-  await t.test("visual, source and preview modes follow the editor's configured text size", async () => {
+  await t.test("both toolbars and every editing mode follow the configured text size", async () => {
     for (const fontSize of [0.5, 3]) {
       const sizes = await page.evaluate((fontSize) => {
         const host = document.body.appendChild(document.createElement("div"));
@@ -70,6 +103,10 @@ test("MD editor library", { timeout: 30000 }, async (t) => {
         const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
         const measure = (selector, property) => parseFloat(getComputedStyle(host.querySelector(selector))[property]) / rem;
         const visual = measure(".byEDline", "fontSize");
+        const control = measure(".byVIEWfontSize", "fontSize");
+        const formatting = measure(".byEDtoolbar button", "fontSize");
+        const decreaseDisabled = host.querySelector('[data-message-label="decreaseTextSize"]').disabled;
+        const increaseDisabled = host.querySelector('[data-message-label="increaseTextSize"]').disabled;
         const indent = measure(".byEDgroup-bullet", "paddingLeft");
         const visualPadding = measure(".byEDsurface", "paddingLeft");
         editor.setSyntaxMode("source");
@@ -80,10 +117,95 @@ test("MD editor library", { timeout: 30000 }, async (t) => {
         const frame = measure(".byEDpreview", "fontSize");
         editor.destroy();
         host.remove();
-        return { visual, indent, source, preview, frame, visualPadding, sourcePadding };
+        return { visual, control, formatting, decreaseDisabled, increaseDisabled, indent, source, preview, frame, visualPadding, sourcePadding };
       }, fontSize);
-      assert.deepEqual(sizes, { visual: fontSize, indent: 1.75, source: 0.875 * fontSize, preview: fontSize, frame: 1, visualPadding: 1.5, sourcePadding: 1.5 });
+      assert.deepEqual(sizes, {
+        visual: fontSize,
+        control: 0.875 * fontSize,
+        formatting: 0.75 * fontSize,
+        decreaseDisabled: fontSize === 0.5,
+        increaseDisabled: fontSize === 3,
+        indent: 1.75 * fontSize,
+        source: 0.875 * fontSize,
+        preview: fontSize,
+        frame: fontSize,
+        visualPadding: 1.5,
+        sourcePadding: 1.5
+      });
     }
+  });
+
+  await t.test("large controls leave room for editing on a narrow screen", async (t) => {
+    const viewport = page.viewportSize();
+    t.after(() => page.setViewportSize(viewport));
+    await page.setViewportSize({ width: 320, height: 480 });
+    await page.evaluate(() => {
+      window.editor = byMDeditor(root, "Large text", { fontSize: 2.875, animations: false });
+    });
+    const group = page.getByRole("group", { name: "Text size", exact: true });
+    const increase = group.getByRole("button", { name: "Increase text size" });
+    await increase.click();
+    assert.equal(await increase.isDisabled(), true);
+    const fits = await page.evaluate(() => {
+      const tools = root.querySelector(".byEDtoolbars");
+      return tools.scrollHeight > tools.clientHeight && tools.clientHeight <= innerHeight / 2 && document.documentElement.scrollWidth <= innerWidth;
+    });
+    assert.equal(fits, true);
+    await page.getByRole("button", { name: "Divider", exact: true }).focus();
+    assert.ok(await page.locator(".byEDtoolbars").evaluate((tools) => tools.scrollTop > 0));
+    await group.getByRole("button", { name: "Reset text size" }).click();
+    assert.equal(await increase.isEnabled(), true);
+    await page.evaluate(() => editor.destroy());
+  });
+
+  await t.test("text size resets to the configured or inherited size and preserves the edit", async (t) => {
+    t.after(() =>
+      page.evaluate(() => {
+        editor.destroy();
+        root.style.removeProperty("font-size");
+      })
+    );
+    await page.evaluate(() => {
+      root.style.fontSize = "20px";
+      window.editor = byMDeditor(root, "Selected text", { fontSize: "1.2em", animations: false });
+      editor.setSelection(0, 8);
+      editor.command("bold");
+    });
+    const size = () => page.locator("#viewer .byEDsurface").evaluate((surface) => getComputedStyle(surface).fontSize);
+    const group = page.getByRole("group", { name: "Text size", exact: true });
+    const selection = await page.evaluate(() => editor.getSelection());
+    assert.equal(await size(), "24px");
+    await group.getByRole("button", { name: "Increase text size" }).press("Enter");
+    assert.equal(await size(), "26px");
+    assert.deepEqual(await page.evaluate(() => editor.getSelection()), selection);
+    assert.equal(await page.evaluate(() => editor.getMarkdown()), "**Selected** text");
+    await page.locator('[data-command="link"]').click();
+    assert.equal(await page.getByRole("dialog").evaluate((dialog) => getComputedStyle(dialog).fontSize), "26px");
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => {
+      editor.command("undo");
+      editor.setPreview(true);
+    });
+    assert.equal(await page.locator(".byEDpreview p").innerText(), "Selected text");
+    await group.getByRole("button", { name: "Decrease text size" }).press("Space");
+    assert.equal(await page.locator(".byEDpreview p").evaluate((p) => getComputedStyle(p).fontSize), "24px");
+
+    await page.evaluate(() => {
+      window.editor = byMDeditor(root, "Next document");
+      root.style.fontSize = "25px";
+      editor.setLanguage("es");
+    });
+    assert.equal(await size(), "24px");
+    await page.getByRole("button", { name: "Restablecer el tamaño del texto" }).click();
+    assert.equal(await size(), "30px");
+    await page.evaluate(() => {
+      editor.destroy();
+      window.editor = byMDeditor(root, "Inherited");
+    });
+    await group.getByRole("button", { name: "Decrease text size" }).click();
+    assert.equal(await size(), "23px");
+    await group.getByRole("button", { name: "Reset text size" }).click();
+    assert.equal(await size(), "25px");
   });
 
   await t.test("editing commits exact source and undo/redo restores it", async () => {

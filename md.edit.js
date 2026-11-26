@@ -239,6 +239,10 @@
       paragraph: "Paragraph",
       heading: "Heading {level}",
       lightTheme: "Switch to light theme",
+      textSize: "Text size",
+      decreaseTextSize: "Decrease text size",
+      resetTextSize: "Reset text size",
+      increaseTextSize: "Increase text size",
       darkTheme: "Switch to dark theme",
       undo: "Undo",
       redo: "Redo",
@@ -330,6 +334,10 @@
       paragraph: "Párrafo",
       heading: "Título {level}",
       lightTheme: "Cambiar al tema claro",
+      textSize: "Tamaño del texto",
+      decreaseTextSize: "Reducir el tamaño del texto",
+      resetTextSize: "Restablecer el tamaño del texto",
+      increaseTextSize: "Aumentar el tamaño del texto",
       darkTheme: "Cambiar al tema oscuro",
       undo: "Deshacer",
       redo: "Rehacer",
@@ -421,6 +429,10 @@
       paragraph: "Parágrafo",
       heading: "Título {level}",
       lightTheme: "Mudar para o tema claro",
+      textSize: "Tamanho do texto",
+      decreaseTextSize: "Diminuir o tamanho do texto",
+      resetTextSize: "Redefinir o tamanho do texto",
+      increaseTextSize: "Aumentar o tamanho do texto",
       darkTheme: "Mudar para o tema escuro",
       undo: "Desfazer",
       redo: "Refazer",
@@ -512,6 +524,10 @@
       paragraph: "Paragraphe",
       heading: "Titre {level}",
       lightTheme: "Passer au thème clair",
+      textSize: "Taille du texte",
+      decreaseTextSize: "Réduire la taille du texte",
+      resetTextSize: "Réinitialiser la taille du texte",
+      increaseTextSize: "Augmenter la taille du texte",
       darkTheme: "Passer au thème sombre",
       undo: "Annuler",
       redo: "Rétablir",
@@ -603,6 +619,10 @@
       paragraph: "Absatz",
       heading: "Überschrift {level}",
       lightTheme: "Zum hellen Design wechseln",
+      textSize: "Schriftgröße",
+      decreaseTextSize: "Schrift verkleinern",
+      resetTextSize: "Schriftgröße zurücksetzen",
+      increaseTextSize: "Schrift vergrößern",
       darkTheme: "Zum dunklen Design wechseln",
       undo: "Rückgängig",
       redo: "Wiederholen",
@@ -694,6 +714,10 @@
       paragraph: "Paragrafo",
       heading: "Titolo {level}",
       lightTheme: "Passa al tema chiaro",
+      textSize: "Dimensione del testo",
+      decreaseTextSize: "Riduci la dimensione del testo",
+      resetTextSize: "Ripristina la dimensione del testo",
+      increaseTextSize: "Aumenta la dimensione del testo",
       darkTheme: "Passa al tema scuro",
       undo: "Annulla",
       redo: "Ripeti",
@@ -785,6 +809,10 @@
       paragraph: "段落",
       heading: "見出し{level}",
       lightTheme: "ライトテーマに切り替え",
+      textSize: "文字サイズ",
+      decreaseTextSize: "文字を小さくする",
+      resetTextSize: "文字サイズをリセット",
+      increaseTextSize: "文字を大きくする",
       darkTheme: "ダークテーマに切り替え",
       undo: "元に戻す",
       redo: "やり直す",
@@ -876,6 +904,10 @@
       paragraph: "正文",
       heading: "{level}级标题",
       lightTheme: "切换到浅色主题",
+      textSize: "文字大小",
+      decreaseTextSize: "缩小文字",
+      resetTextSize: "重置文字大小",
+      increaseTextSize: "放大文字",
       darkTheme: "切换到深色主题",
       undo: "撤销",
       redo: "重做",
@@ -994,7 +1026,11 @@
     let language = resolveLanguage(element, options.language ?? "auto");
     const translations = options.translations ?? {};
     if (typeof translations !== "object" || Array.isArray(translations) || Object.values(translations).some((value) => typeof value !== "string")) throw new TypeError("Translations must be an object of text labels.");
-    const contentSize = applyAppearance(element, options) || element.querySelector(":scope > .byEDdocument > .byEDsurface")?.style.fontSize || "";
+    const fontSize = applyAppearance(element, options);
+    const previousBody = element.querySelector(":scope > .byEDbody");
+    const body = node("div", "byEDbody");
+    body.style.fontSize = fontSize || previousBody?.style.fontSize || "";
+    body.dataset.defaultFontSize = fontSize || previousBody?.dataset.defaultFontSize || "";
     const painted = element.classList.contains("byVIEWready");
     instances.get(element)?.destroy();
     const {
@@ -1007,6 +1043,7 @@
       syntaxSelect = true,
       previewToggle = true,
       themeToggle = true,
+      fontSizeControls = true,
       paletteSelect = true,
       statusBar = false,
       shortcuts = true,
@@ -1029,6 +1066,7 @@
       syntaxSelect,
       previewToggle,
       themeToggle,
+      fontSizeControls,
       paletteSelect,
       statusBar,
       shortcuts,
@@ -1165,7 +1203,8 @@
       });
     }
     if (!element.dataset.theme && !element.classList.contains("dark")) element.dataset.theme = "light";
-    const bar = node("div", "byEDbar"),
+    const header = node("div", "byEDheader"),
+      bar = node("div", "byEDbar"),
       toolbar = node("div", "byEDtoolbar"),
       documentArea = node("div", "byEDdocument"),
       info = node("small", "byEDcredits"),
@@ -1187,11 +1226,6 @@
     }
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
-    surface.style.fontSize = contentSize;
-    if (contentSize) {
-      raw.style.fontSize = `calc(0.875 * ${contentSize})`;
-      preview.style.setProperty("--by-ed-preview-size", contentSize);
-    }
     surface.contentEditable = "true";
     surface.setAttribute("role", "textbox");
     surface.setAttribute("aria-multiline", "true");
@@ -1269,6 +1303,30 @@
     const themeButton = createThemeButton();
     listen(themeButton, "click", () => api.setTheme(getLocalTheme(element) === "dark" ? "light" : "dark"));
     controls.append(themeButton);
+    const sizes = node("div", "byVIEWfontSizes");
+    sizes.setAttribute("role", "group");
+    sizes.dataset.messageLabel = "textSize";
+    controls.append(sizes);
+    const currentSize = () => parseFloat(getComputedStyle(documentArea).fontSize) / parseFloat(getComputedStyle(document.documentElement).fontSize);
+    function sizeButton(caption, label, step) {
+      const control = node("button", "byVIEWfontSize", caption);
+      control.type = "button";
+      control.dataset.messageLabel = label;
+      listen(control, "click", () => {
+        body.style.fontSize = step ? `${Math.max(0.5, Math.min(3, currentSize() + step))}rem` : body.dataset.defaultFontSize;
+        syncSizeButtons();
+      });
+      sizes.append(control);
+      return control;
+    }
+    const decrease = sizeButton("A-", "decreaseTextSize", -0.125);
+    sizeButton("A", "resetTextSize", 0);
+    const increase = sizeButton("A+", "increaseTextSize", 0.125);
+    function syncSizeButtons() {
+      const size = currentSize();
+      decrease.disabled = size <= 0.5;
+      increase.disabled = size >= 3;
+    }
     bar.append(picker, controls);
     const heading = node("select", "byEDselect byEDheading");
     heading.setAttribute("aria-label", languageText.paragraphStyle);
@@ -1293,14 +1351,20 @@
       commandButtons.set(name, control);
       if (wraps[name]) control.setAttribute("aria-pressed", "false");
     }
-    documentArea.append(info, surface, raw, preview);
-    element.append(bar, toolbar, documentArea, status);
+    const toolbars = node("div", "byEDtoolbars");
+    toolbars.append(bar, toolbar);
+    header.append(toolbars, info);
+    documentArea.append(surface, raw, preview);
+    body.append(header, documentArea, status);
+    element.append(body);
+    syncSizeButtons();
     const controlVisibility = {
       credits: info,
       toolbarToggle: toggle,
       syntaxSelect: picker,
       previewToggle: previewButton,
       themeToggle: themeButton,
+      fontSizeControls: sizes,
       paletteSelect: palettePicker,
       statusBar: status
     };
@@ -1618,7 +1682,7 @@
       const owner = element.getBoundingClientRect();
       const left = Math.max(0, owner.left),
         right = Math.min(global.innerWidth, owner.right),
-        top = Math.max(0, owner.top),
+        top = Math.max(0, header.getBoundingClientRect().bottom),
         bottom = Math.min(global.innerHeight, owner.bottom);
       contextToolbar.hidden = bounds.bottom <= top || bounds.top >= bottom || bounds.right <= left || bounds.left >= right;
       if (contextToolbar.hidden) return;
@@ -1634,7 +1698,7 @@
       if (contextToolbar) return;
       contextToolbar = node("div", "byEDcontextToolbar");
       contextToolbar.setAttribute("role", "toolbar");
-      element.append(contextToolbar);
+      body.append(contextToolbar);
       listen(contextToolbar, "keydown", (event) => {
         if (event.key !== "Escape") return;
         event.preventDefault();
@@ -2754,7 +2818,7 @@
       form.append(actions);
       dialog.append(form);
       dialog.lang = language;
-      element.append(dialog);
+      body.append(dialog);
       const close = () => {
         const current = dialog;
         dialog = null;
@@ -3328,7 +3392,7 @@
         }
         if (palettePicker.hidden) palettePicker.remove();
         else if (palettePicker.parentNode !== controls) controls.prepend(palettePicker);
-        controls.hidden = palettePicker.hidden && previewButton.hidden && themeButton.hidden;
+        controls.hidden = palettePicker.hidden && previewButton.hidden && themeButton.hidden && sizes.hidden;
         bar.hidden = toggle.hidden && picker.hidden && controls.hidden;
       },
       // Render the actual MD viewer on demand; returning to editing restores its saved selection.
@@ -3495,7 +3559,7 @@
             const message = document.createElement("p");
             message.setAttribute("role", "alert");
             message.textContent = error.message;
-            element.appendChild(message);
+            body.appendChild(message);
           }
           return false;
         })

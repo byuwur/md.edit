@@ -86,6 +86,14 @@ test("MD editor playground loads, updates, and copies a starter", { timeout: 300
   assert.equal(await credits.isVisible(), false);
   await creditsToggle.check();
   assert.equal(await credits.isVisible(), true);
+  const textSize = editor.getByRole("group", { name: "Text size", exact: true });
+  const textSizeToggle = page.getByRole("switch", { name: "Text size controls" });
+  assert.equal(await textSize.isVisible(), true);
+  await textSizeToggle.uncheck();
+  assert.equal(await textSize.isVisible(), false);
+  assert.equal(JSON.parse(await page.locator("#options-json").inputValue()).fontSizeControls, false);
+  await textSizeToggle.check();
+  assert.equal(await textSize.isVisible(), true);
   const colors = await editor.evaluate((viewer) => {
     const surface = viewer.querySelector(".byEDsurface");
     const background = () => getComputedStyle(surface).backgroundColor;
