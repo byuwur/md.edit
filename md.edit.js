@@ -10,7 +10,7 @@
   if (global.byMDeditor?.initialized) return;
 
   // ===== METADATA =====
-  byMDeditor.VERSION = "2.5"; // 2026-11-25
+  byMDeditor.VERSION = "2.6"; // 2026-11-25
   // Mirrored helpers are checked by code.view/.github/scripts/check-family.mjs.
   const componentName = "MD.edit";
   const themeFile = "md";
